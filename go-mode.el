@@ -1516,7 +1516,8 @@ description at POINT."
   "Jump to the definition of the expression at POINT."
   (interactive "d")
   (condition-case nil
-      (let ((file (car (godef--call point))))
+      (let* ((new-point (move-point-to-function-name point))
+             (file (car (godef--call new-point))))
         (if (not (godef--successful-p file))
             (message "%s" (godef--error file))
           (push-mark)
@@ -1526,6 +1527,37 @@ description at POINT."
             (ring-insert find-tag-marker-ring (point-marker)))
           (godef--find-file-line-column file other-window)))
     (file-error (message "Could not run godef binary"))))
+
+(defun move-point-to-function-name (point)
+  "Move the POINT to a function name, skipping spaces.
+If the POINT is at some punctuation character, then check if there is
+the function name at the previous character.  Otherwise just return the POINT."
+  (cond
+   ((is-space-at-point) (eat-spaces-at-point point))
+   ((is-word-only-before-point) (use-name-one-char-back point))
+   (t point)))
+
+(defun is-space-at-point ()
+  (looking-at "[[:space:]]"))
+
+(defun is-non-word-at-point ()
+  (looking-at "[^[:word:]_]"))
+
+(defun is-word-before-point ()
+  (looking-back "[[:word:]_]" 1))
+
+(defun is-word-only-before-point ()
+  (and
+   (is-non-word-at-point)
+   (is-word-before-point)))
+
+(defun eat-spaces-at-point (point)
+  "Skip spaces and move the POINT forward."
+  (let ((delta (skip-chars-forward "[:space:]")))
+    (+ point delta)))
+
+(defun use-name-one-char-back (point)
+  (1- point))
 
 (defun godef-jump-other-window (point)
   (interactive "d")
